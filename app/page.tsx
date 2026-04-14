@@ -49,6 +49,13 @@ export default async function HomePage() {
               Dashboard’a Git
             </Link>
 
+            <Link
+              href="/questions"
+              className="rounded-xl border border-slate-300 px-5 py-3 transition hover:bg-slate-50"
+            >
+              Soru Havuzuna Git
+            </Link>
+
             <a
               href="#features"
               className="rounded-xl border border-slate-300 px-5 py-3 transition hover:bg-slate-50"
