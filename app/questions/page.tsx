@@ -1,5 +1,5 @@
-import { supabase } from "../../lib/supabase/client";
-import QuestionsClient from "./questions-client";
+import { createClient } from "../../lib/supabase/server";
+import QuestionsClient from "./QuestionsClient";
 
 export type Choice = {
   id: number;
@@ -33,6 +33,8 @@ export type Question = {
 };
 
 async function getQuestions(): Promise<Question[]> {
+  const supabase = await createClient();
+
   const { data, error } = await supabase
     .from("questions")
     .select(

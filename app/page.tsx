@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { siteConfig } from "../config/site";
-import { supabase } from "../lib/supabase/client";
+import { createClient } from "../lib/supabase/server";
 
 type Subject = {
   id: number;
@@ -9,6 +9,8 @@ type Subject = {
 };
 
 async function getSubjects(): Promise<Subject[]> {
+  const supabase = await createClient();
+
   const { data, error } = await supabase
     .from("subjects")
     .select("*")
