@@ -24,6 +24,8 @@ export default function QuestionsClient({
   const [isChecked, setIsChecked] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [wrongQuestions, setWrongQuestions] = useState<Question[]>([]);
+  const [quizFinished, setQuizFinished] = useState(false);
 
   const currentQuestion = questions[currentIndex];
 
@@ -52,15 +54,30 @@ export default function QuestionsClient({
   function handleCheckAnswer() {
     if (selectedChoiceId === null || !correctChoice || isChecked) return;
 
-    if (selectedChoiceId === correctChoice.id) {
+    const isCorrect = selectedChoiceId === correctChoice.id;
+
+    if (isCorrect) {
       setCorrectCount((prev) => prev + 1);
+    } else {
+      const alreadyExists = wrongQuestions.some(
+        (question) => question.id === currentQuestion.id
+      );
+
+      if (!alreadyExists) {
+        setWrongQuestions((prev) => [...prev, currentQuestion]);
+      }
     }
 
     setIsChecked(true);
   }
 
   function handleNextQuestion() {
-    if (currentIndex === questions.length - 1) return;
+    if (!isChecked) return;
+
+    if (currentIndex === questions.length - 1) {
+      setQuizFinished(true);
+      return;
+    }
 
     setCurrentIndex((prev) => prev + 1);
     setSelectedChoiceId(null);
@@ -74,11 +91,132 @@ export default function QuestionsClient({
     setIsChecked(false);
     setShowExplanation(false);
     setCorrectCount(0);
+    setWrongQuestions([]);
+    setQuizFinished(false);
   }
 
   const isLastQuestion = currentIndex === questions.length - 1;
   const selectedIsCorrect =
     isChecked && correctChoice && selectedChoiceId === correctChoice.id;
+
+  const scorePercent = Math.round((correctCount / questions.length) * 100);
+
+  if (quizFinished) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
+        <div className="mx-auto max-w-5xl">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+            <h1 className="text-3xl font-bold">Test Tamamlandı</h1>
+            <p className="mt-2 text-slate-600">
+              Sonuçlarını aşağıda görebilirsin.
+            </p>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm text-slate-500">Toplam Soru</p>
+                <p className="mt-2 text-3xl font-bold">{questions.length}</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm text-slate-500">Doğru Sayısı</p>
+                <p className="mt-2 text-3xl font-bold">{correctCount}</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm text-slate-500">Başarı Oranı</p>
+                <p className="mt-2 text-3xl font-bold">%{scorePercent}</p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleRestart}
+                className="rounded-xl bg-slate-900 px-5 py-3 text-white transition hover:opacity-90"
+              >
+                Testi Yeniden Başlat
+              </button>
+
+              <Link
+                href="/"
+                className="rounded-xl border border-slate-300 bg-white px-5 py-3 transition hover:bg-slate-100"
+              >
+                Ana Sayfaya Dön
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+            <h2 className="text-2xl font-bold">Yanlış Yapılan Sorular</h2>
+
+            {wrongQuestions.length === 0 ? (
+              <p className="mt-4 text-green-700">
+                Tebrikler, hiç yanlış yapmadın.
+              </p>
+            ) : (
+              <div className="mt-6 space-y-6">
+                {wrongQuestions.map((question, index) => {
+                  const rightChoice = question.choices.find(
+                    (choice) => choice.is_correct
+                  );
+
+                  return (
+                    <div
+                      key={question.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-6"
+                    >
+                      <div className="mb-3 flex flex-wrap items-center gap-3">
+                        <span className="rounded-full bg-slate-900 px-3 py-1 text-sm text-white">
+                          Yanlış Soru {index + 1}
+                        </span>
+
+                        <span className="rounded-full border border-slate-300 px-3 py-1 text-sm text-slate-700">
+                          {getTopicName(question.topics)}
+                        </span>
+                      </div>
+
+                      <h3 className="text-xl font-semibold">{question.body}</h3>
+
+                      <div className="mt-4 space-y-2">
+                        {question.choices.map((choice) => (
+                          <div
+                            key={choice.id}
+                            className={`rounded-xl border p-3 ${
+                              choice.is_correct
+                                ? "border-green-600 bg-green-50"
+                                : "border-slate-200 bg-white"
+                            }`}
+                          >
+                            <span className="font-semibold">{choice.label}) </span>
+                            <span>{choice.body}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {rightChoice && (
+                        <p className="mt-4 font-medium text-green-700">
+                          Doğru cevap: {rightChoice.label}) {rightChoice.body}
+                        </p>
+                      )}
+
+                      {question.explanation && (
+                        <div className="mt-4 rounded-xl bg-white p-4">
+                          <h4 className="font-semibold">Açıklama</h4>
+                          <p className="mt-2 text-slate-700">
+                            {question.explanation}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
@@ -196,24 +334,14 @@ export default function QuestionsClient({
               {showExplanation ? "Açıklamayı Gizle" : "Açıklamayı Göster"}
             </button>
 
-            {!isLastQuestion ? (
-              <button
-                type="button"
-                onClick={handleNextQuestion}
-                disabled={!isChecked}
-                className="rounded-xl border border-slate-300 bg-white px-5 py-3 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Sonraki Soru
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleRestart}
-                className="rounded-xl border border-slate-300 bg-white px-5 py-3 transition hover:bg-slate-100"
-              >
-                Başa Dön
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleNextQuestion}
+              disabled={!isChecked}
+              className="rounded-xl border border-slate-300 bg-white px-5 py-3 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isLastQuestion ? "Testi Bitir" : "Sonraki Soru"}
+            </button>
           </div>
 
           {isChecked && (
