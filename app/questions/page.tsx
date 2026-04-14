@@ -14,13 +14,21 @@ export type Topic = {
   slug: string;
 };
 
+export type Subject = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
 export type Question = {
   id: number;
   body: string;
   difficulty: string;
   explanation: string | null;
   topic_id: number;
+  subject_id: number;
   topics: Topic | Topic[] | null;
+  subjects: Subject | Subject[] | null;
   choices: Choice[];
 };
 
@@ -34,7 +42,13 @@ async function getQuestions(): Promise<Question[]> {
       difficulty,
       explanation,
       topic_id,
+      subject_id,
       topics (
+        id,
+        name,
+        slug
+      ),
+      subjects (
         id,
         name,
         slug

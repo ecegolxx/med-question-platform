@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import type { Question, Topic } from "./page";
+import { useEffect, useMemo, useState } from "react";
+import type { Question, Subject, Topic } from "./page";
 
 type QuestionsClientProps = {
   questions: Question[];
@@ -16,9 +16,35 @@ function getTopicName(topic: Topic | Topic[] | null): string {
   return topic.name;
 }
 
+function getTopicSlug(topic: Topic | Topic[] | null): string {
+  if (!topic) return "unknown";
+  if (Array.isArray(topic)) {
+    return topic[0]?.slug ?? "unknown";
+  }
+  return topic.slug;
+}
+
+function getSubjectName(subject: Subject | Subject[] | null): string {
+  if (!subject) return "Ders yok";
+  if (Array.isArray(subject)) {
+    return subject[0]?.name ?? "Ders yok";
+  }
+  return subject.name;
+}
+
+function getSubjectSlug(subject: Subject | Subject[] | null): string {
+  if (!subject) return "unknown";
+  if (Array.isArray(subject)) {
+    return subject[0]?.slug ?? "unknown";
+  }
+  return subject.slug;
+}
+
 export default function QuestionsClient({
   questions,
 }: QuestionsClientProps) {
+  const [selectedSubject, setSelectedSubject] = useState("all");
+  const [selectedTopic, setSelectedTopic] = useState("all");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedChoiceId, setSelectedChoiceId] = useState<number | null>(null);
   const [isChecked, setIsChecked] = useState(false);
@@ -27,7 +53,73 @@ export default function QuestionsClient({
   const [wrongQuestions, setWrongQuestions] = useState<Question[]>([]);
   const [quizFinished, setQuizFinished] = useState(false);
 
-  const currentQuestion = questions[currentIndex];
+  const subjectOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    questions.forEach((question) => {
+      const slug = getSubjectSlug(question.subjects);
+      const name = getSubjectName(question.subjects);
+
+      if (!map.has(slug)) {
+        map.set(slug, name);
+      }
+    });
+
+    return Array.from(map.entries()).map(([slug, name]) => ({
+      slug,
+      name,
+    }));
+  }, [questions]);
+
+  const subjectFilteredQuestions = useMemo(() => {
+    if (selectedSubject === "all") return questions;
+
+    return questions.filter(
+      (question) => getSubjectSlug(question.subjects) === selectedSubject
+    );
+  }, [questions, selectedSubject]);
+
+  const topicOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    subjectFilteredQuestions.forEach((question) => {
+      const slug = getTopicSlug(question.topics);
+      const name = getTopicName(question.topics);
+
+      if (!map.has(slug)) {
+        map.set(slug, name);
+      }
+    });
+
+    return Array.from(map.entries()).map(([slug, name]) => ({
+      slug,
+      name,
+    }));
+  }, [subjectFilteredQuestions]);
+
+  const filteredQuestions = useMemo(() => {
+    if (selectedTopic === "all") return subjectFilteredQuestions;
+
+    return subjectFilteredQuestions.filter(
+      (question) => getTopicSlug(question.topics) === selectedTopic
+    );
+  }, [subjectFilteredQuestions, selectedTopic]);
+
+  useEffect(() => {
+    setSelectedTopic("all");
+  }, [selectedSubject]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setSelectedChoiceId(null);
+    setIsChecked(false);
+    setShowExplanation(false);
+    setCorrectCount(0);
+    setWrongQuestions([]);
+    setQuizFinished(false);
+  }, [selectedSubject, selectedTopic]);
+
+  const currentQuestion = filteredQuestions[currentIndex];
 
   const correctChoice = useMemo(() => {
     return currentQuestion?.choices?.find((choice) => choice.is_correct) ?? null;
@@ -46,6 +138,68 @@ export default function QuestionsClient({
           >
             Ana Sayfaya Dön
           </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (!filteredQuestions.length) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold">Soru Çözme Modu</h1>
+              <p className="mt-2 text-slate-600">
+                Seçilen filtrede henüz soru bulunamadı.
+              </p>
+            </div>
+
+            <Link
+              href="/"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 transition hover:bg-slate-100"
+            >
+              Ana Sayfaya Dön
+            </Link>
+          </div>
+
+          <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Ders Seç
+              </label>
+              <select
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-500"
+              >
+                <option value="all">Tüm Dersler</option>
+                {subjectOptions.map((subject) => (
+                  <option key={subject.slug} value={subject.slug}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Konu Seç
+              </label>
+              <select
+                value={selectedTopic}
+                onChange={(e) => setSelectedTopic(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-500"
+              >
+                <option value="all">Tüm Konular</option>
+                {topicOptions.map((topic) => (
+                  <option key={topic.slug} value={topic.slug}>
+                    {topic.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </main>
     );
@@ -74,7 +228,7 @@ export default function QuestionsClient({
   function handleNextQuestion() {
     if (!isChecked) return;
 
-    if (currentIndex === questions.length - 1) {
+    if (currentIndex === filteredQuestions.length - 1) {
       setQuizFinished(true);
       return;
     }
@@ -95,16 +249,57 @@ export default function QuestionsClient({
     setQuizFinished(false);
   }
 
-  const isLastQuestion = currentIndex === questions.length - 1;
+  const isLastQuestion = currentIndex === filteredQuestions.length - 1;
   const selectedIsCorrect =
     isChecked && correctChoice && selectedChoiceId === correctChoice.id;
 
-  const scorePercent = Math.round((correctCount / questions.length) * 100);
+  const scorePercent =
+    filteredQuestions.length > 0
+      ? Math.round((correctCount / filteredQuestions.length) * 100)
+      : 0;
 
   if (quizFinished) {
     return (
       <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
         <div className="mx-auto max-w-5xl">
+          <div className="mb-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Ders Seç
+              </label>
+              <select
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-500"
+              >
+                <option value="all">Tüm Dersler</option>
+                {subjectOptions.map((subject) => (
+                  <option key={subject.slug} value={subject.slug}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Konu Seç
+              </label>
+              <select
+                value={selectedTopic}
+                onChange={(e) => setSelectedTopic(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-500"
+              >
+                <option value="all">Tüm Konular</option>
+                {topicOptions.map((topic) => (
+                  <option key={topic.slug} value={topic.slug}>
+                    {topic.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <h1 className="text-3xl font-bold">Test Tamamlandı</h1>
             <p className="mt-2 text-slate-600">
@@ -114,7 +309,9 @@ export default function QuestionsClient({
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <p className="text-sm text-slate-500">Toplam Soru</p>
-                <p className="mt-2 text-3xl font-bold">{questions.length}</p>
+                <p className="mt-2 text-3xl font-bold">
+                  {filteredQuestions.length}
+                </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -168,6 +365,10 @@ export default function QuestionsClient({
                       <div className="mb-3 flex flex-wrap items-center gap-3">
                         <span className="rounded-full bg-slate-900 px-3 py-1 text-sm text-white">
                           Yanlış Soru {index + 1}
+                        </span>
+
+                        <span className="rounded-full border border-slate-300 px-3 py-1 text-sm text-slate-700">
+                          {getSubjectName(question.subjects)}
                         </span>
 
                         <span className="rounded-full border border-slate-300 px-3 py-1 text-sm text-slate-700">
@@ -225,7 +426,7 @@ export default function QuestionsClient({
           <div>
             <h1 className="text-3xl font-bold">Soru Çözme Modu</h1>
             <p className="mt-2 text-slate-600">
-              Tek tek soru çöz, cevabını kontrol et ve açıklamayı incele.
+              Ders ve konu seçerek tek tek soru çözebilirsin.
             </p>
           </div>
 
@@ -237,17 +438,62 @@ export default function QuestionsClient({
           </Link>
         </div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <div className="mb-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Ders Seç
+            </label>
+            <select
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-500"
+            >
+              <option value="all">Tüm Dersler</option>
+              {subjectOptions.map((subject) => (
+                <option key={subject.slug} value={subject.slug}>
+                  {subject.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Konu Seç
+            </label>
+            <select
+              value={selectedTopic}
+              onChange={(e) => setSelectedTopic(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-500"
+            >
+              <option value="all">Tüm Konular</option>
+              {topicOptions.map((topic) => (
+                <option key={topic.slug} value={topic.slug}>
+                  {topic.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-sm text-slate-500">İlerleme</p>
             <p className="mt-2 text-2xl font-bold">
-              {currentIndex + 1} / {questions.length}
+              {currentIndex + 1} / {filteredQuestions.length}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-sm text-slate-500">Doğru Sayısı</p>
             <p className="mt-2 text-2xl font-bold">{correctCount}</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-500">Ders</p>
+            <p className="mt-2 text-lg font-semibold">
+              {getSubjectName(currentQuestion.subjects)}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
