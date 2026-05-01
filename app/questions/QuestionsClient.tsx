@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { Question, Subject, Topic } from "./Choice";
+import type { Question, Subject, Topic } from "./page";
 
 type QuestionsClientProps = {
   questions: Question[];
